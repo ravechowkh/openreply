@@ -113,7 +113,8 @@ export default async function LoginPage({
               </p>
             </div>
           ) : (
-            <form action={sendMagicLink} className="space-y-5">
+            <>
+              <form action={sendMagicLink} className="space-y-5">
               <div className="space-y-2">
                 <label
                   htmlFor="email"
@@ -138,17 +139,18 @@ export default async function LoginPage({
               >
                 {t("Email me a magic link")}
               </button>
-            </form>
-            {process.env.BOOTSTRAP_TOKEN && (
-              <form action={continueWithPrivateBootstrap} className="mt-4">
-                <button
-                  type="submit"
-                  className="w-full inline-flex items-center justify-center rounded border border-border px-6 py-3.5 text-sm font-semibold text-muted transition-colors hover:text-foreground"
-                >
-                  Continue to private Funnel
-                </button>
               </form>
-            )}
+              {process.env.BOOTSTRAP_TOKEN && (
+                <form action={continueWithPrivateBootstrap} className="mt-4">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex items-center justify-center rounded border border-border px-6 py-3.5 text-sm font-semibold text-muted transition-colors hover:text-foreground"
+                  >
+                    Continue to private Funnel
+                  </button>
+                </form>
+              )}
+            </>
           )}
         </div>
       </div>
