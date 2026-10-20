@@ -14,8 +14,9 @@ function matchesSecret(candidate: string, expected: string) {
 /**
  * Private, one-time bootstrap for self-hosted instances that have not yet
  * configured email delivery. It is inert unless both env vars are present.
- * Existing user/session records provide the one-use guard, which keeps this
- * compatible with older self-hosted databases that have only the core tables.
+ * The token is kept server-side in Railway variables and only this private
+ * instance exposes the button, so it remains usable for the owner after a
+ * browser session expires.
  */
 async function bootstrap(request: Request) {
   const configuredToken = process.env.BOOTSTRAP_TOKEN;
@@ -31,14 +32,6 @@ async function bootstrap(request: Request) {
 
   if (!matchesSecret(candidate, configuredToken)) {
     return NextResponse.json({ error: "Invalid bootstrap token" }, { status: 404 });
-  }
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, sessions: { select: { id: true }, take: 1 } },
-  });
-  if (existingUser?.sessions.length) {
-    return NextResponse.json({ error: "Bootstrap token already used" }, { status: 410 });
   }
 
   const user = await prisma.user.upsert({
@@ -58,7 +51,10 @@ async function bootstrap(request: Request) {
   });
 
   const secure = url.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
-  const response = NextResponse.redirect(new URL("/dashboard", url));
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host;
+  const publicOrigin = `${forwardedProto}://${forwardedHost}`;
+  const response = NextResponse.redirect(new URL("/dashboard", publicOrigin));
   response.cookies.set(secure ? "__Secure-authjs.session-token" : "authjs.session-token", sessionToken, {
     httpOnly: true,
     sameSite: "lax",
