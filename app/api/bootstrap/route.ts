@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
 
-const MARKER = "__openreply_bootstrap__";
 const SESSION_DAYS = 30;
 
 function matchesSecret(candidate: string, expected: string) {
@@ -15,8 +14,8 @@ function matchesSecret(candidate: string, expected: string) {
 /**
  * Private, one-time bootstrap for self-hosted instances that have not yet
  * configured email delivery. It is inert unless both env vars are present.
- * The operational-events table is used as a durable one-use marker because
- * some existing self-hosted databases predate Auth.js's token table.
+ * Existing user/session records provide the one-use guard, which keeps this
+ * compatible with older self-hosted databases that have only the core tables.
  */
 async function bootstrap(request: Request) {
   const configuredToken = process.env.BOOTSTRAP_TOKEN;
@@ -34,23 +33,11 @@ async function bootstrap(request: Request) {
     return NextResponse.json({ error: "Invalid bootstrap token" }, { status: 404 });
   }
 
-  const existingMarker = await prisma.operationalEvent.findFirst({
-    where: { source: "SYSTEM", message: MARKER },
-    select: { id: true },
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, sessions: { select: { id: true }, take: 1 } },
   });
-  if (existingMarker) {
-    return NextResponse.json({ error: "Bootstrap token already used" }, { status: 410 });
-  }
-
-  try {
-    await prisma.operationalEvent.create({
-      data: {
-        source: "SYSTEM",
-        message: MARKER,
-        payload: { tokenHash: Buffer.from(configuredToken).toString("base64url") },
-      },
-    });
-  } catch {
+  if (existingUser?.sessions.length) {
     return NextResponse.json({ error: "Bootstrap token already used" }, { status: 410 });
   }
 
