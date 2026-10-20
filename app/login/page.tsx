@@ -3,7 +3,6 @@ import { getI18n } from "@/lib/i18n/server";
 import { getCampaignTemplate } from "@/lib/templates/campaign-templates";
 import { DemoNotice } from "@/components/demo-notice";
 import { isPublicDemoHost } from "@/lib/env";
-import { redirect } from "next/navigation";
 
 const GITHUB_URL = "https://github.com/diwenne/openreply";
 const SETUP_DOCS_URL = `${GITHUB_URL}/blob/main/docs/setup.md`;
@@ -70,13 +69,6 @@ export default async function LoginPage({
     });
   }
 
-  async function continueWithPrivateBootstrap() {
-    "use server";
-    const token = process.env.BOOTSTRAP_TOKEN;
-    if (!token) return;
-    redirect(`/api/bootstrap?token=${encodeURIComponent(token)}`);
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-md">
@@ -141,7 +133,8 @@ export default async function LoginPage({
               </button>
               </form>
               {process.env.BOOTSTRAP_TOKEN && (
-                <form action={continueWithPrivateBootstrap} className="mt-4">
+                <form action="/api/bootstrap" method="post" className="mt-4">
+                  <input type="hidden" name="token" value={process.env.BOOTSTRAP_TOKEN} />
                   <button
                     type="submit"
                     className="w-full inline-flex items-center justify-center rounded border border-border px-6 py-3.5 text-sm font-semibold text-muted transition-colors hover:text-foreground"
