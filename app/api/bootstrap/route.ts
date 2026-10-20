@@ -15,7 +15,8 @@ function matchesSecret(candidate: string, expected: string) {
 /**
  * Private, one-time bootstrap for self-hosted instances that have not yet
  * configured email delivery. It is inert unless both env vars are present.
- * The verification-token table is used as a durable one-use marker.
+ * The operational-events table is used as a durable one-use marker because
+ * some existing self-hosted databases predate Auth.js's token table.
  */
 async function bootstrap(request: Request) {
   const configuredToken = process.env.BOOTSTRAP_TOKEN;
@@ -33,20 +34,20 @@ async function bootstrap(request: Request) {
     return NextResponse.json({ error: "Invalid bootstrap token" }, { status: 404 });
   }
 
-  const tokenHash = Buffer.from(configuredToken).toString("base64url");
-  const existingMarker = await prisma.verificationToken.findUnique({
-    where: { identifier_token: { identifier: MARKER, token: tokenHash } },
+  const existingMarker = await prisma.operationalEvent.findFirst({
+    where: { source: "SYSTEM", message: MARKER },
+    select: { id: true },
   });
   if (existingMarker) {
     return NextResponse.json({ error: "Bootstrap token already used" }, { status: 410 });
   }
 
   try {
-    await prisma.verificationToken.create({
+    await prisma.operationalEvent.create({
       data: {
-        identifier: MARKER,
-        token: tokenHash,
-        expires: new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000),
+        source: "SYSTEM",
+        message: MARKER,
+        payload: { tokenHash: Buffer.from(configuredToken).toString("base64url") },
       },
     });
   } catch {
